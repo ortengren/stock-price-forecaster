@@ -28,3 +28,4 @@ class LSTMLayerHyperparams:
 @dataclass
 class ModelHyperparams:
     lstm_layers: List[LSTMLayerHyperparams]
+
