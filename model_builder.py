@@ -67,7 +67,7 @@ def build_model(hp):
     ))
   learning_rate=hp.Float("lr", min_value=1e-4, max_value=1e-1, sampling="log")
   model.compile(
-      optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
+      optimizer=keras.optimizers.Adam(learning_rate=learning_rate, clipnorm=1.0),
       loss="mse",
       metrics=["mse"],
   )
