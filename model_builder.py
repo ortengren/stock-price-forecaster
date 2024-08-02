@@ -46,7 +46,7 @@ def build_model(hp):
   model = keras.Sequential()    
   model.add(keras.Input(
       shape=(20, 1),
-      batch_size=32,
+      batch_size=8,
       name="Inputs"
   ))
   num_layers = hp.Int("num_layers", 1, 4)
@@ -55,7 +55,7 @@ def build_model(hp):
       layers.LSTM(
         units=hp.Int(f"units_{i}", min_value=16, max_value=128, step=16),
         activation=hp.Choice(f"activation_{i}", ["relu", "tanh"]),
-        recurrent_activation=hp.Choice(f"recurrent_activation_{i}", ["sigmoid", "linear", "relu"]),
+        recurrent_activation=hp.Choice(f"recurrent_activation_{i}", ["sigmoid", "relu"]),
         dropout=hp.Float(f"dropout_{i}", min_value=0.0, max_value=0.6, step=0.1),
         recurrent_dropout=hp.Float(f"recurrent_dropout_{i}", min_value=0.0, max_value=0.6, step=0.1),
         return_sequences=(i != num_layers - 1)
