@@ -40,8 +40,8 @@ def sort(array):
 
 def get_trials(num_trials, proj_name):
   trials = list()
-  for n in range(100):
-    path = f"tuning/stock_predictor/trial_{n:03d}/trial.json"
+  for n in range(num_trials):
+    path = f"tuning/{proj_name}/trial_{n:03d}/trial.json"
     with open(path, mode="r") as f:
       trial = json.load(f)
       trials.append(trial)
