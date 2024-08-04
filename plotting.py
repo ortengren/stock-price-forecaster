@@ -10,9 +10,6 @@ from keras.utils import timeseries_dataset_from_array
 from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import MinMaxScaler
 
-from processing import split_indices, make_stationary, inverse_stationary, scale, unscale, sequence
-from tuner import LSTMLayerHyperparams, ModelHyperparams
-
 
 def visualize_loss(history, title):
     loss = history.history["loss"]
@@ -43,6 +40,7 @@ def show_plot(plot_data, delta, title):
             plt.plot(time_steps, plot_data[i].flatten(), marker[i], label=labels[i])
     plt.legend()
     plt.xlim([time_steps[0], (future + 15)])
+    plt.ylim([0, max(plot_data[i])])
     plt.xlabel("Time-Step")
     plt.show()
     return

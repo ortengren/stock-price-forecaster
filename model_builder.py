@@ -1,3 +1,4 @@
+from datetime import datetime
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -11,63 +12,108 @@ from keras.utils import timeseries_dataset_from_array
 from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import MinMaxScaler
 
-from tuner import LSTMLayerHyperparams, ModelHyperparams
 
-
-def get_model(batch_size, optimizer, loss, metrics, hp, seperate_output_layer=True):
-    model = keras.Sequential()    
-    model.add(keras.Input(
-        shape=(20, 1),
-        batch_size=batch_size,
-        name="Inputs"
-    ))
-    for idx, l in enumerate(hp.lstm_layers):
-        model.add(layers.LSTM(
-            l.units,
-            activation=l.activation,
-            recurrent_activation=l.recurrent_activation,
-            kernel_initializer=l.kernel_initializer,
-            recurrent_initializer=l.recurrent_initializer,
-            bias_initializer=l.bias_initializer,
-            dropout=l.dropout,
-            recurrent_dropout=l.recurrent_dropout,
-            return_sequences=l.return_sequences,
-            return_state=l.return_state,
-            stateful=l.stateful,
-        )
-      )
-    if seperate_output_layer:
-        model.add(layers.Dense(1))
-    model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
-    return model
+#def get_model(batch_size, optimizer, loss, metrics, hp, seperate_output_layer=True):
+#    model = keras.Sequential()    
+#    model.add(keras.Input(
+#        shape=(20, 1),
+#        batch_size=batch_size,
+#        name="Inputs"
+#    ))
+#    for idx, l in enumerate(hp.lstm_layers):
+#        model.add(layers.LSTM(
+#            l.units,
+#            activation=l.activation,
+#            recurrent_activation=l.recurrent_activation,
+#            kernel_initializer=l.kernel_initializer,
+#            recurrent_initializer=l.recurrent_initializer,
+#            bias_initializer=l.bias_initializer,
+#            dropout=l.dropout,
+#            recurrent_dropout=l.recurrent_dropout,
+#            return_sequences=l.return_sequences,
+#            return_state=l.return_state,
+#            stateful=l.stateful,
+#        )
+#      )
+#    if seperate_output_layer:
+#        model.add(layers.Dense(1))
+#    model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
+#    return model
 
 
 def build_model(hp):
   model = keras.Sequential()    
   model.add(keras.Input(
       shape=(20, 1),
-      batch_size=8,
+      batch_size=64,
+      name="Inputs"
+  ))  
+  model.add(layers.Dense(32, activation="relu"))
+  num_layers = 2 #hp.Int("num_layers", 1, 3)
+  for i in range(num_layers):
+    activations = ["sigmoid", "tanh"]
+    inits = ["glorot_uniform", "he_normal"]
+    model.add(
+      layers.LSTM(
+        units=32, #hp.Int(f"units_{i}", min_value=16, max_value=96, step=16),
+        activation="tanh", #hp.Choice(f"activation_{i}", activations),
+        recurrent_activation="sigmoid",#hp.Choice(f"recurrent_activation_{i}", activations),
+        dropout=hp.Float(f"dropout_{i}", min_value=0.0, max_value=0.4, step=0.1),
+#        recurrent_dropout=0.0, #hp.Float(f"recurrent_dropout_{i}", min_value=0.0, max_value=0.6, step=0.1),
+        return_sequences=(i != num_layers - 1),
+        kernel_initializer=hp.Choice(f"kernel_initializer_{i}", inits),
+        recurrent_initializer="orthogonal", #hp.Choice(f"recurrent_initializer_{i}", inits),
+        bias_initializer="zeros"#""hp.Choice(f"bias_initializer_{i}", inits+["zeros"])
+      ))
+  model.add(
+    layers.Dense(
+      1,
+      activation="linear", #"tanh",#hp.Choice(f"activation_{num_layers}", activations)
+      kernel_initializer=hp.Choice(f"kernel_initializer_{num_layers}", inits),
+      bias_initializer="zeros" #hp.Choice(f"bias_initializer_{num_layers}", inits+["zeros"]),
+    ))
+  learning_rate=hp.Float("lr", min_value=1e-3, max_value=1e-2, sampling="log")
+  model.compile(
+      optimizer=keras.optimizers.Adam(learning_rate=learning_rate), #, clipnorm=1.0),
+      loss="mse",
+      metrics=["mse"],
+  )
+  return model
+
+
+def build_spec_model(
+  num_layers, 
+  units, 
+  activations, 
+  recurrent_activations, 
+  dropouts, 
+  recurrent_dropouts, 
+  learning_rate
+):
+  model = keras.Sequential()    
+  model.add(keras.Input(
+      shape=(20, 1),
+      batch_size=64,
       name="Inputs"
   ))
-  num_layers = hp.Int("num_layers", 1, 4)
+  model.add(layers.Dense(32, activation="relu"))
   for i in range(num_layers):
     model.add(
       layers.LSTM(
-        units=hp.Int(f"units_{i}", min_value=16, max_value=128, step=16),
-        activation=hp.Choice(f"activation_{i}", ["relu", "tanh"]),
-        recurrent_activation=hp.Choice(f"recurrent_activation_{i}", ["sigmoid", "relu"]),
-        dropout=hp.Float(f"dropout_{i}", min_value=0.0, max_value=0.6, step=0.1),
-        recurrent_dropout=hp.Float(f"recurrent_dropout_{i}", min_value=0.0, max_value=0.6, step=0.1),
+        units=units[i],
+        activation=activations[i],
+        recurrent_activation=recurrent_activations[i],
+        dropout=dropouts[i],
+        recurrent_dropout=recurrent_dropouts[i],
         return_sequences=(i != num_layers - 1)
       ))
   model.add(
     layers.Dense(
       1,
-      activation=hp.Choice(f"activation_{num_layers}", ["sigmoid", "relu"])
+      activation="linear"#"sigmoid"#activation=hp.Choice(f"activation_{num_layers}", ["sigmoid", "relu"])
     ))
-  learning_rate=hp.Float("lr", min_value=1e-4, max_value=1e-1, sampling="log")
   model.compile(
-      optimizer=keras.optimizers.Adam(learning_rate=learning_rate, clipnorm=1.0),
+      optimizer=keras.optimizers.Adam(learning_rate=learning_rate),#, clipnorm=1.0),
       loss="mse",
       metrics=["mse"],
   )
@@ -77,12 +123,12 @@ def build_model(hp):
 def get_tuner():
   tuner = keras_tuner.RandomSearch(
     hypermodel=build_model,
-    objective="mse",
+    objective="val_mse",
     max_trials=100,
     executions_per_trial=1,
     overwrite=True,
     directory="tuning",
-    project_name="stock_predictor",
+    project_name="stock_predictor_" + str(datetime.now()),
   )
   return tuner
 
